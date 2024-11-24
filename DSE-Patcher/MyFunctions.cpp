@@ -131,12 +131,19 @@ int MyGetImageBaseInKernelAddressSpace(const char *szModuleName,UINT64 *ui64Imag
 	// free ntdll.dll library handle
 	FreeLibrary(hLib);
 	
+	int errorCode = 0xFF;
+	char buffer[100];
+
 	// do this for all modules in the system module information structure
 	for(ULONG i = 0; i < pModules->NumberOfModules; i++)
 	{
+		sprintf_s(buffer, sizeof(buffer), "(%s)", (const char*)&pModules->Modules[i].FullPathName[pModules->Modules[i].OffsetToFileName]);
+
 		// check if module name matches our first function argument
 		if(_stricmp((const char*)&pModules->Modules[i].FullPathName[pModules->Modules[i].OffsetToFileName],szModuleName) == 0)
 		{
+			sprintf_s(buffer, sizeof(buffer), "(%lld)", (UINT64)pModules->Modules[i].ImageBase);
+//			MessageBox(g.Dlg1.hDialog1, buffer, "Error", 16);
 			// return image base and image size
 			*ui64ImageBase = (UINT64)pModules->Modules[i].ImageBase;
 			*ulImageSize = pModules->Modules[i].ImageSize;
@@ -347,7 +354,7 @@ int MyGetg_CiOptionsKernelAddress(UINT64 ui64ImageBase,UINT64 *ui64Kernelg_CiOpt
 			}
 		}
 	}
-	// Windows 10 Version 1709 up to Windows 11 Build 22H2
+	// Windows 10 Version 1709 up to Windows 11 (dwBuildNumber = 2610)
 	else
 	{
 		// number of instructions found
@@ -373,27 +380,33 @@ int MyGetg_CiOptionsKernelAddress(UINT64 ui64ImageBase,UINT64 *ui64Kernelg_CiOpt
 			{
 				ulInstructionsFound = 1;
 			}
-			// 2nd we search for the move instruction "mov r8, rdi" with a length of 3 bytes
+			// 2nd we search for the ??? instruction "???" with a length of 3 bytes
 			//lint -e{679} Warning 679:Suspicious Truncation in arithmetic expression combining with pointer
-			else if(ulInstructionsFound == 1 && hs.len == 3 && CiInitialize[i] == 0x4C && CiInitialize[i + 1] == 0x8B && CiInitialize[i + 2] == 0xC7)
+			else if(ulInstructionsFound == 1 && hs.len == 3 && CiInitialize[i] == 0x44 && CiInitialize[i + 1] == 0x8B && CiInitialize[i + 2] == 0xC7)
 			{
 				ulInstructionsFound = 2;
 			}
-			// 3rd we search for the move instruction "mov rdx, rsi" with a length of 3 bytes
+			// 3rd we search for the ??? instruction "???" with a length of 5 bytes
 			//lint -e{679} Warning 679:Suspicious Truncation in arithmetic expression combining with pointer
-			else if(ulInstructionsFound == 2 && hs.len == 3 && CiInitialize[i] == 0x48 && CiInitialize[i + 1] == 0x8B && CiInitialize[i + 2] == 0xD6)
+			else if(ulInstructionsFound == 2 && hs.len == 5 && CiInitialize[i] == 0x48 && CiInitialize[i + 1] == 0x89 && CiInitialize[i + 2] == 0x44 && CiInitialize[i + 3] == 0x24 && CiInitialize[i + 4] == 0x20)
 			{
 				ulInstructionsFound = 3;
 			}
-			// 4th we search for the move instruction "mov ecx, ebp" with a length of 2 bytes
+			// 4th we search for the ??? instruction "???" with a length of 3 bytes
 			//lint -e{679} Warning 679:Suspicious Truncation in arithmetic expression combining with pointer
-			else if(ulInstructionsFound == 3 && hs.len == 2 && CiInitialize[i] == 0x8B && CiInitialize[i + 1] == 0xCD)
+			else if(ulInstructionsFound == 3 && hs.len == 3 && CiInitialize[i] == 0x48 && CiInitialize[i + 1] == 0x8B && CiInitialize[i + 2] == 0xD6)
 			{
 				ulInstructionsFound = 4;
 			}
-			// 5th we search for the call instruction "call CipInitialize" with a length of 5 bytes
+			// 5th we search for the move instruction "mov ecx, ebp" with a length of 2 bytes
 			//lint -e{679} Warning 679:Suspicious Truncation in arithmetic expression combining with pointer
-			else if(ulInstructionsFound == 4 && hs.len == 5 && CiInitialize[i] == 0xE8)
+			else if(ulInstructionsFound == 4 && hs.len == 2 && CiInitialize[i] == 0x8B && CiInitialize[i + 1] == 0xCD)
+			{
+				ulInstructionsFound = 5;
+			}
+			// 6th we search for the call instruction "call CipInitialize" with a length of 5 bytes
+			//lint -e{679} Warning 679:Suspicious Truncation in arithmetic expression combining with pointer
+			else if(ulInstructionsFound == 5 && hs.len == 5 && CiInitialize[i] == 0xE8)
 			{
 				// If we get here we found the call instruction to CipInitialize.
 
@@ -1493,7 +1506,7 @@ void MyUpdateStaticControlWithPatchData(PATCH_DATA *pd,THREAD_TASK_NO ttno,HWND 
 		if(ttno == ThreadTaskReadDSEOnFirstRun && pd->szDSEStatus == NULL)
 		{
 			// build patch data string for static control
-			sprintf(szTmp,
+			sprintf_s(szTmp,sizeof(szTmp),
 			"----------------------------------------------\n"
 			"                DSE Patch Data\n"
 			"----------------------------------------------\n"
@@ -1516,7 +1529,7 @@ void MyUpdateStaticControlWithPatchData(PATCH_DATA *pd,THREAD_TASK_NO ttno,HWND 
 		else
 		{
 			// build patch data string for static control
-			sprintf(szTmp,
+			sprintf_s(szTmp, sizeof(szTmp),
 			"----------------------------------------------\n"
 			"                DSE Patch Data\n"
 			"----------------------------------------------\n"
@@ -1543,7 +1556,7 @@ void MyUpdateStaticControlWithPatchData(PATCH_DATA *pd,THREAD_TASK_NO ttno,HWND 
 		if(ttno == ThreadTaskReadDSEOnFirstRun && pd->szDSEStatus == NULL)
 		{
 			// build patch data string for static control
-			sprintf(szTmp,
+			sprintf_s(szTmp, sizeof(szTmp),
 			"----------------------------------------------\n"
 			"                DSE Patch Data\n"
 			"----------------------------------------------\n"
@@ -1566,7 +1579,7 @@ void MyUpdateStaticControlWithPatchData(PATCH_DATA *pd,THREAD_TASK_NO ttno,HWND 
 		else
 		{
 			// build patch data string for static control
-			sprintf(szTmp,
+			sprintf_s(szTmp, sizeof(szTmp),
 			"----------------------------------------------\n"
 			"                DSE Patch Data\n"
 			"----------------------------------------------\n"
@@ -1775,14 +1788,14 @@ DWORD WINAPI MyThreadProc1(PVOID pvoid)
 	// this is done for every thread task
 	if(tp->ttno == ThreadTaskReadDSEOnFirstRun || tp->ttno == ThreadTaskDisableDSE || tp->ttno == ThreadTaskEnableDSE || tp->ttno == ThreadTaskRestoreDSE)
 	{
-		sprintf(g.szMsg,"Reading %s at address 0x%.16I64X...",g.pd.szVariableName,g.pd.ui64PatchAddress);
+		sprintf_s(g.szMsg, sizeof(g.szMsg), "Reading %s at address 0x%.16I64X...", g.pd.szVariableName, g.pd.ui64PatchAddress);
 		SendMessage(g.Dlg1.hStatusBar1,SB_SETTEXT,(WPARAM)0,(LPARAM)g.szMsg);
 
 		// read DSE value
 		g.pd.dwDSEActualValue = 0xFFFFFFFF;
 		if(g.vd[sel].pFunctionReadMemory(hDevice,g.pd.ui64PatchAddress,g.pd.dwPatchSize,&g.pd.dwDSEActualValue) != 0)
 		{
-			sprintf(g.szMsg,"Can't read %s at address 0x%.16I64X...",g.pd.szVariableName,g.pd.ui64PatchAddress);
+			sprintf_s(g.szMsg, sizeof(g.szMsg), "Can't read %s at address 0x%.16I64X...", g.pd.szVariableName, g.pd.ui64PatchAddress);
 			MessageBox(g.Dlg1.hDialog1,g.szMsg,"Error",16);
 			CloseHandle(hDevice);
 			rc = 12;
@@ -1884,14 +1897,14 @@ DWORD WINAPI MyThreadProc1(PVOID pvoid)
 	// read DSE value again for disable, enable and restore DSE task
 	if(tp->ttno == ThreadTaskDisableDSE || tp->ttno == ThreadTaskEnableDSE || tp->ttno == ThreadTaskRestoreDSE)
 	{
-		sprintf(g.szMsg,"Reading %s at address 0x%.16I64X...",g.pd.szVariableName,g.pd.ui64PatchAddress);
+		sprintf_s(g.szMsg, sizeof(g.szMsg), "Reading %s at address 0x%.16I64X...",g.pd.szVariableName,g.pd.ui64PatchAddress);
 		SendMessage(g.Dlg1.hStatusBar1,SB_SETTEXT,(WPARAM)0,(LPARAM)g.szMsg);
 
 		// read DSE value
 		g.pd.dwDSEActualValue = 0xFFFFFFFF;
 		if(g.vd[sel].pFunctionReadMemory(hDevice,g.pd.ui64PatchAddress,g.pd.dwPatchSize,&g.pd.dwDSEActualValue) != 0)
 		{
-			sprintf(g.szMsg,"Can't read %s at address 0x%.16I64X...",g.pd.szVariableName,g.pd.ui64PatchAddress);
+			sprintf_s(g.szMsg, sizeof(g.szMsg), "Can't read %s at address 0x%.16I64X...",g.pd.szVariableName,g.pd.ui64PatchAddress);
 			MessageBox(g.Dlg1.hDialog1,g.szMsg,"Error",16);
 			CloseHandle(hDevice);
 			rc = 19;

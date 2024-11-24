@@ -291,7 +291,7 @@ int MyDlg1OnTimer(WPARAM wParam)
 	
 	// build time string in the format 00:00:00
 	char szTime[9];
-	sprintf(szTime,"%.2u:%.2u:%.2u",g.Dlg1.uiTimerHours,g.Dlg1.uiTimerMinutes,g.Dlg1.uiTimerSeconds);
+	sprintf_s(szTime, sizeof(szTime), "%.2u:%.2u:%.2u", g.Dlg1.uiTimerHours, g.Dlg1.uiTimerMinutes, g.Dlg1.uiTimerSeconds);
 		
 	// set pane 1 status bar text
 	SendMessage(g.Dlg1.hStatusBar1,SB_SETTEXT,1,(LPARAM)szTime);
