@@ -41,6 +41,8 @@
 
 extern GLOBALS g;
 
+// Store the font handle to delete it on exit
+static HFONT g_hFont = NULL;
 
 //------------------------------------------------------------------------------
 // create tooltip window and associate the tooltip with the control
@@ -156,9 +158,9 @@ int MyDlg1OnInitDialog(HWND hwnd)
 	// use "Lucida Console" because it is a monospaced font present on all target OSs
 	strcpy(lf.lfFaceName,"Lucida Console");
 	// create logical font
-	HFONT hFont = CreateFontIndirect(&lf);
+	g_hFont = CreateFontIndirect(&lf);
 	// set font of static control
-	SendMessage(g.Dlg1.hStatic1,WM_SETFONT,(WPARAM)hFont,FALSE);
+	SendMessage(g.Dlg1.hStatic1,WM_SETFONT,(WPARAM)g_hFont,FALSE);
 
 	// initialize vulnerable driver structures
 	//lint -e{534} Warning 534: Ignoring return value of function
@@ -190,7 +192,12 @@ int MyDlg1OnInitDialog(HWND hwnd)
 	// run initialization thread
 	g.ucRunning = 1;
 	g.ThreadParams.ttno = ThreadTaskReadDSEOnFirstRun;
-	CreateThread(NULL,0,MyThreadProc1,(LPVOID)&g.ThreadParams,0,NULL);
+	HANDLE hThread = CreateThread(NULL,0,MyThreadProc1,(LPVOID)&g.ThreadParams,0,NULL);
+	// close the thread handle as we don't need it
+	if(hThread)
+	{
+		CloseHandle(hThread);
+	}
 
 	return 0;
 }
@@ -227,10 +234,16 @@ int MyDlg1EnableControls(unsigned char ucEnable)
 //------------------------------------------------------------------------------
 int MyDlg1Button1OnClick()
 {
+	// disable controls to prevent starting another thread
+	MyDlg1EnableControls(FALSE);
 	// run DSE disable thread
 	g.ucRunning = 1;
 	g.ThreadParams.ttno = ThreadTaskDisableDSE;
-	CreateThread(NULL,0,MyThreadProc1,(LPVOID)&g.ThreadParams,0,NULL);
+	HANDLE hThread = CreateThread(NULL,0,MyThreadProc1,(LPVOID)&g.ThreadParams,0,NULL);
+	if(hThread)
+	{
+		CloseHandle(hThread);
+	}
 
 	return 0;
 }
@@ -241,10 +254,16 @@ int MyDlg1Button1OnClick()
 //------------------------------------------------------------------------------
 int MyDlg1Button2OnClick()
 {
+	// disable controls to prevent starting another thread
+	MyDlg1EnableControls(FALSE);
 	// run DSE enable thread
 	g.ucRunning = 1;
 	g.ThreadParams.ttno = ThreadTaskEnableDSE;
-	CreateThread(NULL,0,MyThreadProc1,(LPVOID)&g.ThreadParams,0,NULL);
+	HANDLE hThread = CreateThread(NULL,0,MyThreadProc1,(LPVOID)&g.ThreadParams,0,NULL);
+	if(hThread)
+	{
+		CloseHandle(hThread);
+	}
 
 	return 0;
 }
@@ -255,10 +274,16 @@ int MyDlg1Button2OnClick()
 //------------------------------------------------------------------------------
 int MyDlg1Button3OnClick()
 {
+	// disable controls to prevent starting another thread
+	MyDlg1EnableControls(FALSE);
 	// run DSE restore thread
 	g.ucRunning = 1;
 	g.ThreadParams.ttno = ThreadTaskRestoreDSE;
-	CreateThread(NULL,0,MyThreadProc1,(LPVOID)&g.ThreadParams,0,NULL);
+	HANDLE hThread = CreateThread(NULL,0,MyThreadProc1,(LPVOID)&g.ThreadParams,0,NULL);
+	if(hThread)
+	{
+		CloseHandle(hThread);
+	}
 
 	return 0;
 }
@@ -291,7 +316,7 @@ int MyDlg1OnTimer(WPARAM wParam)
 	
 	// build time string in the format 00:00:00
 	char szTime[9];
-	sprintf(szTime,"%.2u:%.2u:%.2u",g.Dlg1.uiTimerHours,g.Dlg1.uiTimerMinutes,g.Dlg1.uiTimerSeconds);
+	sprintf_s(szTime, sizeof(szTime), "%.2u:%.2u:%.2u", g.Dlg1.uiTimerHours, g.Dlg1.uiTimerMinutes, g.Dlg1.uiTimerSeconds);
 		
 	// set pane 1 status bar text
 	SendMessage(g.Dlg1.hStatusBar1,SB_SETTEXT,1,(LPARAM)szTime);
@@ -321,6 +346,13 @@ INT_PTR CALLBACK MyDlg1DlgProc(HWND hwnd,UINT uMsg,WPARAM wParam,LPARAM lParam)
 		if(g.ucRunning == 0)
 		{
 			EndDialog(hwnd,0);
+		}
+		return 1;
+	case WM_DESTROY:
+		// delete GDI objects
+		if(g_hFont)
+		{
+			DeleteObject(g_hFont);
 		}
 		return 1;
 	case WM_COMMAND:
@@ -392,4 +424,3 @@ int __stdcall WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLin
 
 	return 0;
 }
-
